@@ -81,9 +81,9 @@ Let’s break it down step by step and see what the data reveals!
 
 **a.** Do the control sites (Arroyo Quemado, Carpenteria, and Mohawk) provide a strong counterfactual for our treatment sites (Naples, Isla Vista)? Write a paragraph making a case for why this comparison is centris paribus or whether selection bias is likely (be specific!).
 
-This comparison is not ceteris paribus becuase of their differences in geographic location. For ceteris paribus to be true, both treatment and control groups would be essentially the same in all factors except their treatment of it being or not being an MPA.
+Given that the treatment and control sites were randomly assigned, the control sites can provide a strong counterfactual and the comparison can be considered ceteris paribus. Random assignment would help balance the factors that would effect lobster counts across the sites, accounting for differences in geographic distribution and environmental factors. This means that differences in lobster counts between the sites could be due to the treatment itself (MPA or not), not due to the previously mentioned confounding factors. As we assume that both MPA and non-MPA sites to be similar before treatment, the control can be used to see what would have happened to treatment sites IF they had not been MPAs.
 
-Selection bias is likely because the sites are not equally distributed geographically. The treatment sites (Naples and Isla Vista) are located next to each other, while the control sites surround the treatment sites. This means that the treatment and control sites may have different environmental measurements, such as depth, water temperature, and distributions of biotic and abiotics factors. Additionally, the control sites may also vary among themselves for these same reasons. Overall, because the treatment and control sites vary geographically, the habitat in the treatment MPAs may not adequately represent the habitats in the control MPAs, where a ceteris paribus comparison may not be fulfilled.
+With random assignment, there is assumed to be no selection bias as the randomizatoin helps ensure that treatment is not influenced by specific site environmental/geographic factors.
 
 ------------------------------------------------------------------------
 
@@ -251,10 +251,15 @@ ggplot(spiny_counts, aes(x = counts, fill = mpa)) +
     theme_bw() +
     geom_vline(data = stats, aes(xintercept = mean), color = "red", linetype = "dashed", size = 1) + # Mean statistic
     scale_fill_manual(values = c("MPA" = "#C4A9C2", "non_MPA" = "#71D9B0")) +
+     annotate("text", x = mean(stats$mean), y = max(table(spiny_counts$counts)) * 0.9, 
+             label = "Mean Lobster Frequency", color = "red", hjust = -0.1) +
     labs(title = "Histogram of Lobster Counts by MPA Status", 
        x = "Lobster Count", y = "Frequency", fill = 'MPA Status')
 
 # Plot 3: counts grouped by year ------------------------------- Density
+
+# Calculate density manually to fix knitting error
+density_data <- density(spiny_counts$counts)
 
 ggplot(spiny_counts, aes(x = counts, fill = factor(year), color = factor(year))) +
   geom_density(alpha = 0.5) +
@@ -262,9 +267,11 @@ ggplot(spiny_counts, aes(x = counts, fill = factor(year), color = factor(year)))
        x = "Lobster Count", 
        y = "Density") +
   scale_fill_manual(values = c('#C4A9C2', '#D8C397', '#71D9B0', '#09EEC8', '#3BAF85', '#6EA1C8', '#3C7BB7')) +
-   theme_bw() +
-    geom_vline(data = stats, aes(xintercept = median), color = "red", linetype = "dashed", size = 1) + # Median statistic
-    guides(fill = guide_legend(title = "Year"), color = "none") 
+  theme_bw() +
+  geom_vline(data = stats, aes(xintercept = median), color = "red", linetype = "dashed", size = 1) + # Median statistic 
+  annotate("text", x = stats$median, y = max(density_data$y) * 0.9, 
+           label = "Median Lobster Count", color = "red", hjust = -0.1) +
+  guides(fill = guide_legend(title = "Year"), color = "none")
 
 # Plot 4: lobster size -------------------------------
 ggplot(spiny_counts, aes(x = site, y = mean_size, color = site)) + 
@@ -311,7 +318,7 @@ Step 4: OLS regression- building intuition
 m1_ols <- lm(counts ~ treat, data = spiny_counts)
 
 # View OLS regression output
-summary(m1_ols, model.fit = FALSE) 
+summ(m1_ols, model.fit = FALSE) 
 
 ```
 
@@ -319,7 +326,9 @@ summary(m1_ols, model.fit = FALSE)
 
 The Intercept is 28.09. At non-treatment sites (non-MPAs), the average amount of lobsters there is about 28.
 
-The predictor coefficient (non-MPA) is -5.36. On average, lobster counts in non-MPA sites are about 5.36 lobsters fewer compared to MPA sites. Note that the p-value is 0.30 and is thus not statistically significant, meaning that we cannot conclude that non-MPAs negatively effect lobster ecosystems based on this data.
+The predictor coefficient (non-MPA) is -5.36. On average, lobster counts in non-MPA sites are about 5.36 lobsters fewer compared to MPA sites. However, this value is not representative of every single MPA site. Instead, this is the average difference across the MPA sites, calculated by the difference in means.
+
+Note that the p-value is 0.30 and is thus not statistically significant, meaning that we cannot conclude that non-MPAs negatively effect lobster ecosystems based on this data.
 
 **c.** Check the model assumptions using the `check_model` function from the `performance` package
 
@@ -380,15 +389,13 @@ summary(m2_pois)
 
 Predictor Coefficient: The treatment effect of MPAs vs non-MPAs is 0.21.
 
-For poisson regression, the following equation is used: log(expected lobster count) = B0 + B1 x treatment. To interpret our coefficient of 0.21, it must be exponented so that e\^0.21 is 1.23 (IRR). This means that the expected lobster count in non-MPA sites is about 1.23 times greater than in MPA sites.
+For poisson regression, the following equation is used: log(expected lobster count) = B0 + B1 x treatment. To interpret our coefficient of 0.21, it must be exponented so that e\^0.21 is 1.23 (IRR). This means that the expected lobster count in MPA sites is about 1.23 times greater than in non-MPA sites.
 
 **c.** Explain the statistical concept of dispersion and overdispersion in the context of this model.
 
-Residual deviance: 10366 on 250 degrees of freedom
+This model's residual deviance is 10366 on 250 degrees of freedom, and the residual deviance should be close to the degrees of freedom for an ideal Poisson model.
 
-The residual deviance should be close to the degrees of freedom for an ideal Poisson model. In our model, our residual deviance is 10366 and the degrees of freedom is 250.
-
-Dispersion is calculated by dividing the residual deviance by the degrees of freedom, so 10366/250 = 41.46. This is a relatively large number and indicates that there is overdispersion. Note that 1 is the reference point, and values greater than one (like the one calculated from this model) indicates substantial overdispersion.
+Dispersion is calculated by dividing the residual deviance by the degrees of freedom, so 10366/250 = 41.46. This is a relatively large number and indicates that there is overdispersion. Note that 1 is the reference point, and values greater than one (like the one calculated from this model) indicates substantial overdispersion, meaning that there is a large spread of data around the predicted values of the model. The Poisson model assumes that the mean and variance of lobsters counts to be equal, where a perfect assumption residual deviance and degrees of freedom should be approximately equal to each other, leading to our reference value of 1 for dispersion.
 
 Overdispersion is when the standard errors of our coefficient is underestimated. Essentially, this means the variance from the coefficient is greater than the mean, and that this model is not a good fit for the data.
 
@@ -498,11 +505,13 @@ Step 6: Compare models
 
 **c.** Write a short paragraph comparing the results. Is the treatment effect `robust` or stable across the model specifications.
 
-The OLS model was the most different out of the three models. Its coefficient and intercept were vastly larger than the other two. The coefficient also suggests that MPA sites have a greater lobster count compared to non-MPA sites.
+The OLS model was the most different out of the three models, as its coefficient and intercept were vastly larger than the other two. The coefficient also suggests that MPA sites have a greater lobster count compared to non-MPA sites. This makes sense as OLS does not account for zero-inflation and skewed data, leading to biased estimates.
 
-The Poission model has the only statistically significant coefficient for treatment, showing that lobster counts in MPA sites are significantly greater than in non-MPA sites.
+The Poission model has the only statistically significant coefficient for treatment, showing that lobster counts in MPA sites are significantly greater than in non-MPA sites. However, overdispersion was present which can inflate significance.
 
-The negative binomial model is similar to the poisson model, however the results are not statistically significant. This is because the model accounts for the zero-inflation and overdispersion, leading to a greater p-value.
+The negative binomial model is similar to the poisson model, however the results are not statistically significant. This is because the model accounts for the zero-inflation and overdispersion, leading to a greater p-value. This means that as we account for these extra factors, the treatment effect is less certain.
+
+The treatment effect is not robust across model specifications. For example, the significance of treatment effect changes when looking at the Poisson model and the negative binomial model. The treatment effect differs across models as the OLS is likely overestimating, Poisson not accounting for overdispersion, and the negative binomal model not having a significant effect despite being the best model out of the three.
 
 ```{r}
 # Export summaries of the three models
@@ -545,6 +554,10 @@ df <- spiny_counts %>%
 
 The model estimates lobster counts that have been transformed by log. Note that the +1 in \`lm(log(counts + 1)\` is used to prevent taking the log of any zero values. Compared to the previous model, this model adds on to the MPA treatment and factors in year. This means that this model can now look at the effects of MPAs and non-MPAs over different years.
 
+Conceptually, the model has estimated that lobster counts increased over time, and that in certain years MPAs have had a positive effect on lobster counts.
+
+The year\_\_\_ coefficients are the difference in log-lobster counts in reference to 2012 (reference year). The treat:year\_\_ coefficients are also in reference to 2012, and are the extra effect of MPA treatment by year.
+
 **d.** Explain why the main effect for treatment is negative? \*Does this result make sense?
 
 ```{r}
@@ -559,9 +572,7 @@ m5_fixedeffs <- lm(
 summ(m5_fixedeffs, model.fit = FALSE)
 ```
 
-The output is -1.23 for treatment in 2012, which indicates that non-MPA sites have a greater lobster count compared to MPA sites.
-
-This does not make sense at first, because we expect for protected sites to have greater counts of lobsters. However, we see that the coefficients increase over the years, indicating the success of MPAs. Therefore, we can conclude that the initial negative number was due to the site being at risk (therefore needing the protection from MPAs), and having counts increase after receiving the protection.
+The output is -1.23 for treatment in 2012, which indicates that initially, non-MPA sites have a greater lobster count compared to MPA sites. The negative treatment effect does make sense as 2012 is the baseline year, and that the previous lobster populations are lower at first which is why MPAs may have been established in those areas. Over time, we see that lobster counts do increase in MPAs, looking specifically at the treat:year coefficients which show positive and significant effects in the later years.
 
 **e.** Look at the model predictions: Use the `interact_plot()` function from package `interactions` to plot mean predictions by year and treatment status.
 
@@ -650,6 +661,10 @@ b.  Discuss the following causal inference assumptions in the context of the MPA
 
     1)  SUTVA: Stable Unit Treatment Value assumption
 
-        This assumption is likely violated because of spillover affecting the treatment sites. The MPA sites may be losing the amount of lobsters to non-MPA sites due to natural movement, indicating that these treatments are not independent of each other.
+        There are two assumptions to SUTVA: No interference (independent treatments/no spillover) and No hidden variation (treatment is applied equally.)
+
+        This no interference assumption is likely violated because of spillover affecting the treatment sites. The MPA sites may be losing the amount of lobsters to non-MPA sites due to natural movement, indicating that these treatments are not independent of each other.
+
+        However, the second assumption (equal treatment) is likely to not be violated. If all the MPA sites are at the same protection level (SMCA or no-take SMRs for example) then they would all be at the same level of treatment. Only if the MPAs are at the same designation levels will this assumption not be violated.\
 
     2)  Excludability assumption is also likely violated because of geographic location differences and thus selection bias on the sites. Different locations can contain different environmental factors such as depth, plant ecosystems, and substrate that can determine lobster suitability.
